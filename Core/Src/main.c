@@ -22,7 +22,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include <can.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -45,6 +45,23 @@ CAN_HandleTypeDef hcan;
 UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
+/*
+ *
+ *
+ *
+ *
+ * Naming convention from Ryan Lee, LVS: https://github.com/ryantheEng/GPS_firmware/blob/main/GPS_Firmware/Core/Src/main.c
+ *
+ */
+CAN_RxHeaderTypeDef rxheader; // CAN msg receiver header
+HAL_StatusTypeDef status;
+
+uint8_t CAN_buffer; // CAN buffer
+uint8_t UART_buffer; // UART buffer
+uint8_t message[8];
+CAN_t CAN;
+
+CAN.msgpointer = NULL;
 
 /* USER CODE END PV */
 
@@ -93,13 +110,37 @@ int main(void)
   MX_CAN_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
+  /*
+   *
+   *
+   *
+   * NOTES:
+   *  - check parameters, activeITs, priorities in setPriority
+   */
+  HAL_CAN_ActivateNotification(&hcan, ActiveITs);
+  HAL_NVIC_SetPriority(CAN1_RX1_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(CAN1_RX1_IRQn);
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
-  {
+  { // WAIT FOR THE MESSAGE
+	  if (HAL_CAN_GetRxFifoFillLevel(hcan, CAN_R_FIFO0) > 0)
+	  {
+		status = HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, rxheader, message); // get message and update status
+	  }
+	  if (status != HAL_OK) // check for error
+	  {
+		  printf("ERROR RECEIVING MESSAGE");
+	  }
+	  else // store pointer to message
+	  {
+		  CAN.msgpointer = &message;
+      }
+
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -222,6 +263,7 @@ static void MX_GPIO_Init(void)
 
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
 
 }
 
